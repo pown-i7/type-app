@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>type-app</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Lexend+Deca:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #0b0813;
+            --main-color: #a855f7;
+            --caret-color: #d8b4fe;
+            --sub-color: #4b4b5c;
+            --text-color: #ffffff; /* Bright text for correct letters */
+            --error-color: #ef4444;
+            --active-font: 'Lexend Deca', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #bcbcce;
+            font-family: var(--active-font);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        #top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 850px;
+            margin-bottom: 1.5rem;
+            user-select: none;
+            z-index: 20;
+        }
+
+        #stats-container {
+            display: flex;
+            gap: 2rem;
+            font-size: 1.5rem;
+            color: var(--sub-color);
+            font-weight: bold;
+        }
+
+        .active-stat {
+            color: var(--main-color);
+            text-shadow: 0 0 10px var(--main-color);
+        }
+
+        .selectors-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .custom-select, .toggle-btn {
+            background-color: rgba(168, 85, 247, 0.06);
+            color: #e2e8f0;
+            border: 1px solid var(--sub-color);
+            padding: 0.5rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            outline: none;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .custom-select:focus, .custom-select:hover, .toggle-btn:hover, .toggle-btn.active {
+            border-color: var(--main-color);
+            box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+        }
+
+        .toggle-btn.active {
+            background-color: rgba(168, 85, 247, 0.2);
+            color: var(--caret-color);
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--sub-color);
+            color: var(--sub-color);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .mode-btn.active {
+            color: var(--main-color);
+            border-color: var(--main-color);
+            background: rgba(168, 85, 247, 0.1);
+            box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+        }
+
+        #main-display-container {
+            width: 850px;
+            height: 180px;
+            position: relative;
+        }
+
+        #words-box {
+            width: 100%;
+            height: 100%;
+            font-size: 1.8rem;
+            line-height: 2.8rem;
+            position: relative;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #words-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            position: relative;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #arcade-box {
+            display: none;
+            width: 100%;
+            height: 220px;
+            border: 1px dashed rgba(168, 85, 247, 0.2);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(10, 5, 20, 0.6);
+        }
+
+        .falling-word {
+            position: absolute;
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #e2e8f0;
+            text-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
+            white-space: nowrap;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #laser-line {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            height: 2px;
+            background: var(--error-color);
+            box-shadow: 0 0 12px var(--error-color);
+        }
+
+        .word {
+            color: var(--sub-color);
+            display: flex;
+            white-space: nowrap;
+        }
+
+        .letter {
+            position: relative;
+            transition: color 0.08s ease;
+        }
+
+        .letter.correct {
+            color: #00ffcc; /* Bright luminous teal for highly visible correct typing */
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
+        }
+
+        .letter.incorrect {
+            color: var(--error-color);
+            text-shadow: 0 0 10px var(--error-color);
+            animation: shake 0.12s ease-in-out infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+
+        #caret {
+            position: absolute;
+            width: 2px;
+            height: 2.3rem;
+            background-color: var(--caret-color);
+            border-radius: 2px;
+            transition: left 0.06s cubic-bezier(0.4, 0, 0.2, 1), top 0.06s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 12px var(--caret-color), 0 0 6px var(--main-color);
+            z-index: 10;
+        }
+
+        .blink {
+            animation: blinker 1s cubic-bezier(0.4, 0, 1, 1) infinite;
+        }
+
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        #hidden-input {
+            position: absolute;
+            opacity: 0;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        #restart-btn {
+            margin-top: 35px;
+            background: none;
+            border: none;
+            color: var(--sub-color);
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        #restart-btn:hover {
+            color: var(--text-color);
+            text-shadow: 0 0 8px var(--text-color);
+        }
+
+        .font-lexend { --active-font: 'Lexend Deca', sans-serif; }
+        .font-fira { --active-font: 'Fira Code', monospace; }
+    </style>
+</head>
+<body class="font-lexend">
+
+    <div id="top-bar">
+        <div id="stats-container">
+            <div id="timer" class="active-stat">15</div>
+            <div id="wpm-display">wpm: --</div>
+            <div id="acc-display">acc: --</div>
+        </div>
+        
+        <div class="selectors-group">
+            <button id="gameModeToggle" class="toggle-btn">🕹️ Arcade Mode</button>
+
+            <div id="time-modes">
+                <button class="mode-btn active" data-time="15">15s</button>
+                <button class="mode-btn" data-time="30">30s</button>
+                <button class="mode-btn" data-time="60">60s</button>
+                <button class="mode-btn" data-time="endless">∞</button>
+            </div>
+
+            <select id="fontSelector" class="custom-select">
+                <option value="font-lexend">✨ Lexend Deca</option>
+                <option value="font-fira">💻 Fira Code</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="main-display-container">
+        <div id="words-box">
+            <div id="caret" class="blink"></div>
+            <div id="words-wrapper"></div>
+        </div>
+
+        <div id="arcade-box">
+            <div id="laser-line"></div>
+            <div id="falling-container"></div>
+        </div>
+    </div>
+
+    <input type="text" id="hidden-input" autocomplete="off" autofocus>
+
+    <button id="restart-btn">Press [Tab] + [Enter] or click here to restart</button>
+
+    <script>
+        // Syllable processing lists to construct readable pronounceable words algorithmically
+        const consonants = ["b", "c", "d", "f", "g", "h", "l", "m", "n", "p", "r", "s", "t", "v", "w", "x", "z"];
+        const vowels = ["a", "e", "i", "o", "u"];
+
+        const wordsBox = document.getElementById('words-box');
+        const wordsWrapper = document.getElementById('words-wrapper');
+        const arcadeBox = document.getElementById('arcade-box');
+        const fallingContainer = document.getElementById('falling-container');
+        const gameModeToggle = document.getElementById('gameModeToggle');
+        
+        const hiddenInput = document.getElementById('hidden-input');
+        const caret = document.getElementById('caret');
+        const timerDisplay = document.getElementById('timer');
+        const wpmDisplay = document.getElementById('wpm-display');
+        const accDisplay = document.getElementById('acc-display');
+        const restartBtn = document.getElementById('restart-btn');
+        const fontSelector = document.getElementById('fontSelector');
+        const timeBtns = document.querySelectorAll('#time-modes .mode-btn');
+
+        let words = [];
+        let currentWordIndex = 0;
+        let currentLetterIndex = 0;
+        let selectedDuration = 15; 
+        let timer = 15;
+        let elapsedSeconds = 0;
+        let timerInterval = null;
+        let isTestRunning = false;
+        let isEndlessMode = false;
+        let totalLettersTyped = 0;
+        let correctLettersTyped = 0;
+
+        // Adaptive Arcade Mechanics
+        let isArcadeMode = false;
+        let arcadeInterval = null;
+        let fallingTop = 0;
+        let currentActiveArcadeWord = "";
+        let arcadeSpeed = 1.0;  // Starts very easy and smooth
+        let arcadeScore = 0;   // Dynamic multiplier scaled by level progression
+
+        // Algorithm to generate pronounceable human-readable structural words on the fly
+        function generateProceduralWord(targetLength = 0) {
+            let len = targetLength > 0 ? targetLength : Math.floor(Math.random() * 3) + 4; // defaults to 4-6 chars
+            let res = "";
+            for(let i = 0; i < len; i++) {
+                if(i % 2 === 0) {
+                    res += consonants[Math.floor(Math.random() * consonants.length)];
+                } else {
+                    res += vowels[Math.floor(Math.random() * vowels.length)];
+                }
+            }
+            return res;
+        }
+
+        function generateCleanWordPool() {
+            wordsWrapper.innerHTML = '';
+            wordsWrapper.style.transform = 'translateY(0px)';
+            words = [];
+            const fragment = document.createDocumentFragment();
+
+            for (let i = 0; i < 80; i++) {
+                words.push(generateProceduralWord());
+            }
+
+            words.forEach((word, wIdx) => {
+                const wordSpan = document.createElement('span');
+                wordSpan.classList.add('word');
+                if (wIdx === 0) wordSpan.classList.add('current');
+
+                word.split('').forEach((letter) => {
+                    const letterSpan = document.createElement('span');
+                    letterSpan.classList.add('letter');
+                    letterSpan.innerText = letter;
+                    wordSpan.appendChild(letterSpan);
+                });
+
+                if (wIdx < words.length - 1) {
+                    const spaceSpan = document.createElement('span');
+                    spaceSpan.classList.add('letter', 'space');
+                    spaceSpan.innerHTML = '&nbsp;';
+                    wordSpan.appendChild(spaceSpan);
+                }
+                fragment.appendChild(wordSpan);
+            });
+            wordsWrapper.appendChild(fragment);
+        }
+
+        function updateCaret() {
+            if(isArcadeMode) return;
+            const currentWordElement = wordsWrapper.children[currentWordIndex];
+            if (!currentWordElement) return;
+            
+            const currentLetterElement = currentWordElement.children[currentLetterIndex];
+            const boxRect = wordsBox.getBoundingClientRect();
+            let targetLeft = 0;
+            let targetTop = 0;
+
+            if (currentLetterElement) {
+                const letterRect = currentLetterElement.getBoundingClientRect();
+                targetLeft = letterRect.left - boxRect.left;
+                targetTop = letterRect.top - boxRect.top;
+            } else {
+                const lastLetter = currentWordElement.lastChild;
+                const letterRect = lastLetter.getBoundingClientRect();
+                targetLeft = (letterRect.left - boxRect.left) + letterRect.width;
+                targetTop = letterRect.top - boxRect.top;
+            }
+
+            caret.style.left = `${targetLeft}px`;
+            caret.style.top = `${targetTop}px`;
+
+            const wrapperTop = wordsWrapper.getBoundingClientRect().top;
+            const wordTop = currentWordElement.getBoundingClientRect().top;
+            const diff = wordTop - wrapperTop;
+            
+            if (diff > 0) {
+                wordsWrapper.style.transform = `translateY(-${diff}px)`;
+            } else {
+                wordsWrapper.style.transform = `translateY(0px)`;
+            }
+        }
+
+        // Escalation Logic for Arcade Setup
+        function spawnArcadeWord() {
+            fallingContainer.innerHTML = '';
+            fallingTop = 0;
+            
+            // Starts short (3 chars), increases size dynamically as arcadeScore updates higher
+            let baseLength = 3 + Math.floor(arcadeScore / 5);
+            if(baseLength > 8) baseLength = 8; // clamps layout length max cap saftey
+            
+            currentActiveArcadeWord = generateProceduralWord(baseLength);
+            
+            const element = document.createElement('div');
+            element.id = "active-falling-node";
+            element.classList.add('falling-word');
+            element.innerText = currentActiveArcadeWord;
+            element.style.top = fallingTop + "px";
+            fallingContainer.appendChild(element);
+            hiddenInput.value = '';
+        }
+
+        function runArcadeLoop() {
+            const element = document.getElementById('active-falling-node');
+            if(!element) return;
+
+            fallingTop += arcadeSpeed;
+            element.style.top = fallingTop + "px";
+
+            if (fallingTop >= 175) {
+                element.style.color = "var(--error-color)";
+                totalLettersTyped += currentActiveArcadeWord.length; 
+                // Penalty reset scaling speed down slightly on miss
+                arcadeSpeed = Math.max(1.0, arcadeSpeed - 0.2);
+                spawnArcadeWord();
+            }
+        }
+
+        function startTimer() {
+            isTestRunning = true;
+            elapsedSeconds = 0;
+            
+            if(isArcadeMode) {
+                spawnArcadeWord();
+                arcadeInterval = setInterval(runArcadeLoop, 30);
+            }
+
+            timerInterval = setInterval(() => {
+                elapsedSeconds++;
+                if (!isEndlessMode) {
+                    timer--;
+                    timerDisplay.innerText = timer;
+                    if (timer === 0) {
+                        endTest();
+                    }
+                } else {
+                    timerDisplay.innerText = elapsedSeconds + 's';
+                    if(!isArcadeMode) {
+                        const currentMinutes = elapsedSeconds / 60;
+                        const liveWpm = Math.max(0, Math.round((correctLettersTyped / 5) / currentMinutes));
+                        wpmDisplay.innerText = `wpm: ${liveWpm}`;
+                    }
+                }
+            }, 1000);
+        }
+
+        function endTest() {
+            clearInterval(timerInterval);
+            if(arcadeInterval) clearInterval(arcadeInterval);
+            hiddenInput.blur();
+            isTestRunning = false;
+            caret.style.display = 'none';
+            
+            const activeTime = isEndlessMode ? (elapsedSeconds > 0 ? elapsedSeconds : 1) : selectedDuration;
+            const minutes = activeTime / 60;
+            const wpm = Math.max(0, Math.round((correctLettersTyped / 5) / minutes));
+            const accuracy = totalLettersTyped > 0 ? Math.round((correctLettersTyped / totalLettersTyped) * 100) : 0;
+
+            wpmDisplay.innerText = `wpm: ${wpm}`;
+            accDisplay.innerText = `acc: ${accuracy}%`;
+            timerDisplay.classList.remove('active-stat');
+        }
+
+        function initTest() {
+            clearInterval(timerInterval);
+            if(arcadeInterval) clearInterval(arcadeInterval);
+            isTestRunning = false;
+            currentWordIndex = 0;
+            currentLetterIndex = 0;
+            totalLettersTyped = 0;
+            correctLettersTyped = 0;
+            elapsedSeconds = 0;
+            arcadeScore = 0;
+            arcadeSpeed = 1.0; 
+            hiddenInput.value = '';
+            
+            if (isEndlessMode) {
+                timerDisplay.innerText = '∞';
+            } else {
+                timer = selectedDuration;
+                timerDisplay.innerText = timer;
+            }
+            
+            timerDisplay.classList.add('active-stat');
+            wpmDisplay.innerText = 'wpm: --';
+            accDisplay.innerText = 'acc: --';
+            
+            if(isArcadeMode) {
+                wordsBox.style.display = 'none';
+                arcadeBox.style.display = 'block';
+                fallingContainer.innerHTML = '';
+            } else {
+                wordsBox.style.display = 'block';
+                arcadeBox.style.display = 'none';
+                caret.style.display = 'block';
+                caret.classList.add('blink');
+                generateCleanWordPool();
+                setTimeout(updateCaret, 50);
+            }
+            hiddenInput.focus();
+        }
+
+        gameModeToggle.addEventListener('click', () => {
+            isArcadeMode = !isArcadeMode;
+            gameModeToggle.classList.toggle('active', isArcadeMode);
+            initTest();
+        });
+
+        timeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                timeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const modeVal = btn.getAttribute('data-time');
+                if(modeVal === 'endless') {
+                    isEndlessMode = true;
+                } else {
+                    isEndlessMode = false;
+                    selectedDuration = parseInt(modeVal);
+                }
+                initTest();
+            });
+        });
+
+        document.body.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'SELECT' && !e.target.classList.contains('mode-btn') && e.target !== gameModeToggle) {
+                hiddenInput.focus();
+            }
+        });
+
+        hiddenInput.addEventListener('input', (e) => {
+            if(!isArcadeMode) return;
+            if (!isTestRunning) startTimer();
+
+            const typedValue = hiddenInput.value;
+
+            if(typedValue.trim() === currentActiveArcadeWord) {
+                correctLettersTyped += currentActiveArcadeWord.length;
+                totalLettersTyped += currentActiveArcadeWord.length;
+                arcadeScore++;
+                arcadeSpeed += 0.15; // Increments step by step dynamically harder
+                spawnArcadeWord();
+            }
+        });
+
+        hiddenInput.addEventListener('keydown', (e) => {
+            if(isArcadeMode) return;
+            if (!isEndlessMode && timer === 0) return;
+
+            const currentWordElement = wordsWrapper.children[currentWordIndex];
+            if (!currentWordElement) return;
+            const letters = currentWordElement.children;
+
+            if (!isTestRunning && e.key.length === 1) {
+                startTimer();
+                caret.classList.remove('blink');
+            }
+
+            if (e.key === 'Backspace') {
+                if (currentLetterIndex > 0) {
+                    currentLetterIndex--;
+                    const targetLetter = letters[currentLetterIndex];
+                    if (targetLetter.classList.contains('correct')) correctLettersTyped = Math.max(0, correctLettersTyped - 1);
+                    totalLettersTyped = Math.max(0, totalLettersTyped - 1);
+                    targetLetter.classList.remove('correct', 'incorrect');
+                } else if (currentWordIndex > 0) {
+                    currentWordElement.classList.remove('current');
+                    currentWordIndex--;
+                    const prevWordElement = wordsWrapper.children[currentWordIndex];
+                    prevWordElement.classList.add('current');
+                    currentLetterIndex = prevWordElement.children.length - 1;
+                    
+                    const targetLetter = prevWordElement.children[currentLetterIndex];
+                    if (targetLetter.classList.contains('correct')) correctLettersTyped = Math.max(0, correctLettersTyped - 1);
+                    totalLettersTyped = Math.max(0, totalLettersTyped - 1);
+                    targetLetter.classList.remove('correct', 'incorrect');
+                }
+                updateCaret();
+                return;
+            }
+
+            if (e.key.length !== 1 || e.key === 'Alt' || e.key === 'Control' || e.key === 'Meta') return;
+
+            if (currentLetterIndex < letters.length) {
+                const targetLetter = letters[currentLetterIndex];
+                totalLettersTyped++;
+
+                const isSpaceMatch = targetLetter.classList.contains('space') && e.key === ' ';
+                const isCharMatch = targetLetter.innerText === e.key;
+
+                if (isSpaceMatch || isCharMatch) {
+                    targetLetter.classList.add('correct');
+                    correctLettersTyped++;
+                } else {
+                    targetLetter.classList.add('incorrect');
+                }
+                currentLetterIndex++;
+            }
+
+            if (currentLetterIndex === letters.length) {
+                currentWordElement.classList.remove('current');
+                currentWordIndex++;
+                currentLetterIndex = 0;
+
+                const nextWord = wordsWrapper.children[currentWordIndex];
+                if (nextWord) {
+                    nextWord.classList.add('current');
+                } else {
+                    endTest();
+                }
+            }
+            updateCaret();
+        });
+
+        // Combined Keybind Check (Handles independent Enter or native Tab combo resets)
+        let isTabPressed = false;
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                isTabPressed = true;
+            }
+            if (e.key === 'Enter') {
+                if (isTabPressed || document.activeElement === restartBtn || !isTestRunning) {
+                    initTest();
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'Tab') isTabPressed = false;
+        });
+
+        restartBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            initTest();
+        });
+
+        fontSelector.addEventListener('change', (e) => {
+            document.body.className = e.target.value;
+            fontSelector.blur();
+            hiddenInput.focus();
+            setTimeout(updateCaret, 50);
+        });
+
+        initTest();
+    </script>
+</body>
+</html>
